@@ -5,13 +5,10 @@ import User from "../models/user";
 import { generateAccessToken, generateRefreshToken } from "../logic/user";
 import { UserInt } from "../interface";
 import cloudinary from "../services/cloudinary";
+import validator from "validator";
 
 const validateEmail = (email: string): boolean => {
-  const regex = new RegExp(
-    "([a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)"
-  );
-  const testEmail = regex.test(email);
-  return testEmail;
+  return validator.isEmail(email);
 };
 
 export const createUser = async (req: Request, res: Response) => {
@@ -133,7 +130,9 @@ export const login = async (req: Request, res: Response) => {
         
         const jwtKey = process.env.JWT_KEY;
         if (!jwtKey) {
-            throw new Error("JWT secret key is missing in environment variables.");
+            return res.status(500).json({
+                message: "JWT secret key is missing in environment variables."
+            });
         }
         const accessToken = generateAccessToken(user, jwtKey);
         const refreshToken = generateRefreshToken(user, jwtKey);
