@@ -1,4 +1,5 @@
 import express, { Application, Request, Response } from "express";
+import morgan from 'morgan';
 import dotenv from "dotenv";
 import main from "./models/db";
 import userRouter from "./routes/user"; 
@@ -18,7 +19,7 @@ main()
     console.log("DB connected");
   })
   .catch(console.error);
-
+app.use(morgan('dev')); 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
