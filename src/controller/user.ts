@@ -14,12 +14,11 @@ const validateEmail = (email: string): boolean => {
 export const createUser = async (req: Request, res: Response) => {
   const requiredFields = [
     "firstName",
-    "lastName", 
+    "lastName",
     "email",
     "password",
     "country",
   ];
-
   for (const field of requiredFields) {
     if (!req.body[field]) {
       return res.status(400).json({
@@ -36,6 +35,7 @@ export const createUser = async (req: Request, res: Response) => {
 
   try {
     const existingUser = await User.findOne({ email: req.body.email });
+
     if (existingUser) {
       return res.status(409).json({
         message: "User already exists",
@@ -43,50 +43,14 @@ export const createUser = async (req: Request, res: Response) => {
     }
 
     let imageUrl = "";
+
     const hash = await bcrypt.hash(req.body.password, 10);
 
-    // Handle image upload - support both file upload and base64
     if (req.file) {
-      // Handle multipart form file upload (your original working method)
       const file = req.file;
       const fileStr = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
-      
       try {
-        const result = await cloudinary.uploader.upload(fileStr, {
-          resource_type: "auto",
-          folder: "user_profiles", // Optional: organize uploads in folders
-        });
-        
-        if (result && result.secure_url) {
-          imageUrl = result.secure_url;
-        } else {
-          return res.status(500).json({
-            message: "Image upload failed",
-          });
-        }
-      } catch (uploadError) {
-        console.error("Cloudinary upload error:", uploadError);
-        return res.status(500).json({
-          message: "Image upload failed",
-        });
-      }
-    } else if (req.body.image) {
-      // Handle base64 image sent in request body
-      try {
-        let imageData = req.body.image;
-        
-        // If the image data doesn't already have the data URL format, add it
-        if (!imageData.startsWith('data:')) {
-          imageData = `data:image/jpeg;base64,${imageData}`;
-        }
-        
-        const result = await cloudinary.uploader.upload(imageData, {
-          resource_type: "auto",
-          folder: "footy_user_profiles",
-          // Add a custom public_id to avoid filename issues
-          public_id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        });
-        
+        const result = await cloudinary.uploader.upload(fileStr);
         if (result && result.secure_url) {
           imageUrl = result.secure_url;
         } else {
@@ -110,7 +74,6 @@ export const createUser = async (req: Request, res: Response) => {
       country: req.body.country,
       image: imageUrl,
     });
-
     try {
       const savedUser = await user.save();
       if (!savedUser) {
@@ -118,7 +81,6 @@ export const createUser = async (req: Request, res: Response) => {
           message: "User creation failed",
         });
       }
-
       return res.status(201).json({
         message: "User created successfully",
         user: savedUser,

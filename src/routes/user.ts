@@ -12,7 +12,7 @@ const upload = multer({
     },
   });
 
-router.post('/signup', createUser);
+router.post('/signup', upload.single('file'), createUser);
 router.post('/login', login);
 router.post("/refresh-token", refreshToken);
 
