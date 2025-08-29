@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Match from "../models/match";
 import { MatchInt } from "../interface";
 import bcrypt from "bcrypt";
+import { _getAdminUpcomingMatches } from "../dao/match";
 
 export const createMatch = async (req: Request, res: Response) => {
   const adminId = req.user.userId;
@@ -123,7 +124,7 @@ export const getMatchDetails = async (req: Request, res: Response) => {
 export const getAdminUpcomingMatches = async (req: Request, res: Response) => {
     const userId = req.user.userId; 
     try {
-        const matches = await Match.find({ adminId: userId, matchDate: { $gte: new Date() } }).sort({ matchDate: 1 });
+        const matches = await _getAdminUpcomingMatches(userId);
         return res.status(200).json({ matches });
     } catch (error) {
         console.error("Error fetching upcoming matches:", error);

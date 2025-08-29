@@ -1,5 +1,5 @@
 import Match from "../models/match";
-import { MatchInt } from "../interface";
+import { MatchInt, MatchStatusInt } from "../interface";
 
 export const updateMatch = async (id, data) => {
     const newData = { ...data };
@@ -12,3 +12,16 @@ export const updateAllMatches = async (match, data) => {
     const matches = await Match.updateMany(match, { $set: newData }).exec();
     return matches;
 }
+
+export const getMatchById = async (id: string) => {
+    const match = await Match.findById(id);
+    return match;
+}
+
+export const _getAdminUpcomingMatches = async (adminId: string) => {
+  return await Match.find({
+    adminId,
+    matchDate: { $gte: new Date() },
+    status: MatchStatusInt.ACTIVE,
+  }).sort({ matchDate: 1 });
+};
