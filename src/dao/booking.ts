@@ -9,7 +9,7 @@ export const getUserUpcomingMatches = async (userId: string) => {
     { $match: { userId } }, // find bookings by user
     {
       $lookup: {
-        from: "Match", // collection name of Match
+        from: "matches", // collection name of Match
         localField: "matchId",
         foreignField: "_id",
         as: "match"

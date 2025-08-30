@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import Match from "../models/match";
-import { MatchInt } from "../interface";
+import { MatchInt, MatchStatusInt } from "../interface";
 import bcrypt from "bcrypt";
 import { _getAdminUpcomingMatches } from "../dao/match";
 
@@ -38,6 +38,19 @@ export const createMatch = async (req: Request, res: Response) => {
         .json({ message: "Match date must be in the future" });
     }
 
+    // Prevent same admin from creating more than 3 active matches
+    const activeMatchesCount = await Match.countDocuments({
+      adminId,
+      matchDate: { $gte: new Date() },
+      status: MatchStatusInt.ACTIVE,
+    });
+
+    if (activeMatchesCount >= 3) {
+      return res.status(400).json({
+        message: "You cannot create more than 3 active matches",
+      });
+    }
+
     // Check if teamId already exists
     const existing = await Match.findOne({ teamId });
     if (existing) {
@@ -72,62 +85,73 @@ export const createMatch = async (req: Request, res: Response) => {
 };
 
 export const updateMatch = async (req: Request, res: Response) => {
-    const adminId = req.user.userId; // from auth middleware
-    const { matchId } = req.params;
-    const { pitchName, matchDate, matchTime, spots, password } = req.body;
+  const adminId = req.user.userId; // from auth middleware
+  const { matchId } = req.params;
+  const { pitchName, matchDate, matchTime, spots, password } = req.body;
 
-    try {
-        const match = await Match.findById(matchId);
+  try {
+    const match = await Match.findById(matchId);
 
-        if (!match) {
-            return res.status(404).json({ message: "Match not found" });
-        }
-
-        if (match.adminId.toString() !== adminId) {
-            return res.status(403).json({ message: "Not authorized to update this match" });
-        }
-
-        // Update only allowed fields if provided
-        if (pitchName) match.pitchName = pitchName;
-        if (matchDate) match.matchDate = matchDate;
-        if (matchTime) match.matchTime = matchTime;
-        if (spots) match.spots = spots;
-        if (password) {
-            const hashedPassword = await bcrypt.hash(password, 10);
-            match.password = hashedPassword;
-        }
-
-        const updatedMatch = await match.save();
-
-        return res.status(200).json({
-            message: "Match updated successfully",
-            match: updatedMatch,
-        });
-    } catch (error) {
-        console.error("Error updating match:", error);
-        return res.status(500).json({ message: "Internal server error" });
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
     }
+
+    if (match.adminId.toString() !== adminId) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to update this match" });
+    }
+
+    // Update only allowed fields if provided
+    if (pitchName) match.pitchName = pitchName;
+    if (matchDate) match.matchDate = matchDate;
+    if (matchTime) match.matchTime = matchTime;
+    if (spots) match.spots = spots;
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      match.password = hashedPassword;
+    }
+
+    const updatedMatch = await match.save();
+
+    return res.status(200).json({
+      message: "Match updated successfully",
+      match: updatedMatch,
+    });
+  } catch (error) {
+    console.error("Error updating match:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 export const getMatchDetails = async (req: Request, res: Response) => {
-    const { matchId } = req.params;
-    try {
-        const match = await Match.findById(matchId)
-        return res.status(200).json({ match });
-
-    } catch (error) {
-        console.error("Error fetching match details:", error);
-        return res.status(500).json({ message: "Internal server error" });
-    }
-    }
+  const { matchId } = req.params;
+  try {
+    const match = await Match.findById(matchId);
+    return res.status(200).json({ match });
+  } catch (error) {
+    console.error("Error fetching match details:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 export const getAdminUpcomingMatches = async (req: Request, res: Response) => {
-    const userId = req.user.userId; 
-    try {
-        const matches = await _getAdminUpcomingMatches(userId);
-        return res.status(200).json({ matches });
-    } catch (error) {
-        console.error("Error fetching upcoming matches:", error);
-        return res.status(500).json({ message: "Internal server error" });
-    }
-}
+  const userId = req.user.userId;
+  try {
+    const matches = await _getAdminUpcomingMatches(userId);
+    return res.status(200).json({ matches });
+  } catch (error) {
+    console.error("Error fetching upcoming matches:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getAllMatches = async (req: Request, res: Response) => {
+  try {
+    const matches = await Match.find().sort({ matchDate: 1 });
+    return res.status(200).json({ matches });
+  } catch (error) {
+    console.error("Error fetching all matches:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

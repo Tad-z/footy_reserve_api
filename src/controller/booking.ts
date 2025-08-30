@@ -4,7 +4,7 @@ import { BookingInt, BookingStatusInt, MatchStatusInt } from "../interface";
 import { getMatchById, _updateMatch } from "../dao/match";
 import bcrypt from "bcrypt";
 import { toObjectId } from "../utils/helpers";
-import { getAllUpcomingMatchesForUser, getUserUpcomingMatches } from "../dao/booking";
+import { getAllUpcomingMatchesForUser, getUpcomingMatches, getUserUpcomingMatches } from "../dao/booking";
 
 export const joinMatch = async (req: Request, res: Response) => {
   const userId = req.user.userId;
@@ -55,19 +55,41 @@ export const joinMatch = async (req: Request, res: Response) => {
     };
     const booking = new Booking(newBooking);
     const savedBooking = await booking.save();
+
     if (!savedBooking) {
       return res.status(500).json({ message: "Failed to create booking" });
     }
+
+    return res.status(201).json({ booking: savedBooking });
   } catch (error) {
     console.error("Error joining match:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
 
+export const getMatchSpots = async (req: Request, res: Response) => {
+  try {
+    const { matchId } = req.params;
+
+    if (!matchId) {
+      return res.status(400).json({ message: "matchId is required" });
+    }
+
+    // Find bookings for the match and populate only firstName, lastName
+    const bookings = await Booking.find({ matchId })
+      .populate("userId", "firstName lastName") // only select these fields
+      .select("status userId spotBooked"); // only return relevant booking fields
+
+    return res.status(200).json(bookings);
+  } catch (error) {
+    console.error("Error fetching match spots:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
 
 export const getUserMatches = async (req: Request, res: Response) => {
   try {
-    const userId = req.user.userId;
+    const userId = toObjectId(req.user.userId);
     const matches = await getUserUpcomingMatches(userId);
     return res.status(200).json({ matches });
   } catch (error) {
@@ -78,8 +100,8 @@ export const getUserMatches = async (req: Request, res: Response) => {
 
 export const getAllUserUpcomingMatches = async (req: Request, res: Response) => {
   try {
-    const userId = req.user.userId;
-    const matches = await getAllUpcomingMatchesForUser(userId);
+    const userId = toObjectId(req.user.userId);
+    const matches = await getUpcomingMatches(userId);
     return res.status(200).json({ matches });
   } catch (error) {
     console.error("Error fetching all user matches:", error);
