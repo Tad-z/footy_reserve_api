@@ -3,6 +3,8 @@ import morgan from 'morgan';
 import dotenv from "dotenv";
 import main from "./models/db";
 import userRouter from "./routes/user"; 
+import matchRouter from "./routes/match";
+import bookingRouter from "./routes/booking";
 
 
 dotenv.config();
@@ -28,3 +30,5 @@ app.get('/health', (req: Request, res: Response) => {
 })
 
 app.use("/user", userRouter);
+app.use("/match", matchRouter);
+app.use("/booking", bookingRouter);

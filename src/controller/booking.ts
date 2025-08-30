@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import Booking from "../models/booking";
 import { BookingInt, BookingStatusInt, MatchStatusInt } from "../interface";
-import { getMatchById, updateMatch } from "../dao/match";
+import { getMatchById, _updateMatch } from "../dao/match";
 import bcrypt from "bcrypt";
 import { toObjectId } from "../utils/helpers";
-import { getUserUpcomingMatches } from "../dao/booking";
+import { getAllUpcomingMatchesForUser, getUserUpcomingMatches } from "../dao/booking";
 
 export const joinMatch = async (req: Request, res: Response) => {
   const userId = req.user.userId;
@@ -75,3 +75,14 @@ export const getUserMatches = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const getAllUserUpcomingMatches = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user.userId;
+    const matches = await getAllUpcomingMatchesForUser(userId);
+    return res.status(200).json({ matches });
+  } catch (error) {
+    console.error("Error fetching all user matches:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}

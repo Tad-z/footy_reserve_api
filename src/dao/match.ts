@@ -1,7 +1,7 @@
 import Match from "../models/match";
 import { MatchInt, MatchStatusInt } from "../interface";
 
-export const updateMatch = async (id, data) => {
+export const _updateMatch = async (id, data) => {
     const newData = { ...data };
     const match = await Match.findByIdAndUpdate(id, newData, { new: true });
     return match;
