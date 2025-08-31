@@ -6,7 +6,7 @@ import auth from '../authorization/auth';
 const router = express.Router();
 
 router.post('/create', auth, createMatch);
-router.get('/myTeams', auth, getAdminUpcomingMatches);
+router.get('/myMatches', auth, getAdminUpcomingMatches);
 router.get('/', getAllMatches)
 router.get('/:matchId', getMatchDetails);
 router.patch('/update/:matchId', auth, updateMatch);
