@@ -59,6 +59,11 @@ const MatchSchema = new Schema<MatchInt>(
       required: true,
       min: 0,
     },
+    totalAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
     password: {
       type: String,
       required: true,

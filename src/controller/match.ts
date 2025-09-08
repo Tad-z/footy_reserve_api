@@ -12,7 +12,7 @@ export const createMatch = async (req: Request, res: Response) => {
     matchDate,
     matchTime,
     spots,
-    pricePerSpot,
+    totalAmount,
     password,
     accountDetails,
   } = req.body;
@@ -23,7 +23,7 @@ export const createMatch = async (req: Request, res: Response) => {
     !matchDate ||
     !matchTime ||
     !spots ||
-    !pricePerSpot ||
+    !totalAmount ||
     !password ||
     !accountDetails
   ) {
@@ -59,6 +59,8 @@ export const createMatch = async (req: Request, res: Response) => {
         .json({ message: "Team ID already in use. Choose another." });
     }
 
+    const pricePerSpot = totalAmount / spots;
+
     // Hash password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -70,6 +72,7 @@ export const createMatch = async (req: Request, res: Response) => {
       matchTime,
       spots,
       pricePerSpot,
+      totalAmount,
       password: hashedPassword,
       accountDetails,
     });
@@ -87,7 +90,7 @@ export const createMatch = async (req: Request, res: Response) => {
 export const updateMatch = async (req: Request, res: Response) => {
   const adminId = req.user.userId; // from auth middleware
   const { matchId } = req.params;
-  const { pitchName, matchDate, matchTime, spots, password } = req.body;
+  const { pitchName, matchDate, matchTime, spots, password, totalAmount } = req.body;
 
   try {
     const match = await Match.findById(matchId);
@@ -106,7 +109,13 @@ export const updateMatch = async (req: Request, res: Response) => {
     if (pitchName) match.pitchName = pitchName;
     if (matchDate) match.matchDate = matchDate;
     if (matchTime) match.matchTime = matchTime;
+    // recalculate pricePerSpot if totalAmount or spots change
     if (spots) match.spots = spots;
+    if (totalAmount) match.totalAmount = totalAmount;
+    if (spots || totalAmount) {
+      match.pricePerSpot = match.totalAmount / match.spots;
+    }
+    
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
       match.password = hashedPassword;

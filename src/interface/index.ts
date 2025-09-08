@@ -29,6 +29,7 @@ export type MatchInt = {
   spots: number;
   spotsBooked?: number;
   pricePerSpot: number;
+  totalAmount: number;
   password: string;
   status?: MatchStatusInt;
   accountDetails: AccountDetailsInt;
