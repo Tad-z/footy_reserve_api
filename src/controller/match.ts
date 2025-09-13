@@ -6,6 +6,7 @@ import { _getAdminUpcomingMatches } from "../dao/match";
 
 export const createMatch = async (req: Request, res: Response) => {
   const adminId = req.user.userId;
+  console.log({ reqBody: req.body });
   const {
     teamId,
     pitchName,
