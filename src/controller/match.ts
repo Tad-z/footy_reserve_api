@@ -166,7 +166,28 @@ export const getAdminUpcomingMatches = async (req: Request, res: Response) => {
   const userId = req.user.userId;
   try {
     const matches = await _getAdminUpcomingMatches(userId);
-    return res.status(200).json({ matches });
+    if (!matches) {
+      return res.status(404).json({ message: "No upcoming matches found" });
+    }
+    // for each match, include admin details
+    const matchesWithAdmin = await Promise.all(
+      matches.map(async (match: any) => {
+      const admin = await getUserById(match.adminId.toString());
+      if (admin) {
+        return {
+        ...match.toObject(),
+        admin: {
+          firstName: admin.firstName,
+          lastName: admin.lastName,
+          image: admin.image,
+        },
+        };
+      }
+      return match;
+      })
+    );
+    // return matches with admin info
+    return res.status(200).json({ matches: matchesWithAdmin });
   } catch (error) {
     console.error("Error fetching upcoming matches:", error);
     return res.status(500).json({ message: "Internal server error" });

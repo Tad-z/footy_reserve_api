@@ -5,6 +5,7 @@ import { getMatchById, _updateMatch } from "../dao/match";
 import bcrypt from "bcrypt";
 import { toObjectId } from "../utils/helpers";
 import { getAllUpcomingMatchesForUser, getUpcomingMatches, getUserUpcomingMatches } from "../dao/booking";
+import { getUserById } from "../dao/user";
 
 export const joinMatch = async (req: Request, res: Response) => {
   const userId = req.user.userId;
@@ -91,7 +92,28 @@ export const getUserMatches = async (req: Request, res: Response) => {
   try {
     const userId = toObjectId(req.user.userId);
     const matches = await getUserUpcomingMatches(userId);
-    return res.status(200).json({ matches });
+    if (!matches) {
+      return res.status(404).json({ message: "No upcoming matches found" });
+    }
+    const matchesWithAdmin = await Promise.all(
+          matches.map(async (match: any) => {
+            console.log(match);
+          const admin = await getUserById(match.adminId.toString());
+          if (admin) {
+            return {
+            ...match,
+            admin: {
+              firstName: admin.firstName,
+              lastName: admin.lastName,
+              image: admin.image,
+            },
+            };
+          }
+          return match;
+          })
+        );
+        // return matches with admin info
+    return res.status(200).json({ matches: matchesWithAdmin });
   } catch (error) {
     console.error("Error fetching user matches:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -102,7 +124,27 @@ export const getAllUserUpcomingMatches = async (req: Request, res: Response) => 
   try {
     const userId = toObjectId(req.user.userId);
     const matches = await getUpcomingMatches(userId);
-    return res.status(200).json({ matches });
+    if (!matches) {
+      return res.status(404).json({ message: "No upcoming matches found" });
+    }
+    const matchesWithAdmin = await Promise.all(
+          matches.map(async (match: any) => {
+          const admin = await getUserById(match.adminId.toString());
+          if (admin) {
+            return {
+            ...match,
+            admin: {
+              firstName: admin.firstName,
+              lastName: admin.lastName,
+              image: admin.image,
+            },
+            };
+          }
+          return match;
+          })
+        );
+        // return matches with admin info
+      return res.status(200).json({ matches: matchesWithAdmin });
   } catch (error) {
     console.error("Error fetching all user matches:", error);
     return res.status(500).json({ message: "Internal server error" });
