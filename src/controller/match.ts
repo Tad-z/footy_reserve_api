@@ -3,6 +3,7 @@ import Match from "../models/match";
 import { MatchInt, MatchStatusInt } from "../interface";
 import bcrypt from "bcrypt";
 import { _getAdminUpcomingMatches } from "../dao/match";
+import { getUserById } from "../dao/user";
 
 export const createMatch = async (req: Request, res: Response) => {
   const adminId = req.user.userId;
@@ -137,7 +138,23 @@ export const updateMatch = async (req: Request, res: Response) => {
 export const getMatchDetails = async (req: Request, res: Response) => {
   const { matchId } = req.params;
   try {
+    // use the adminId to include admin info
     const match = await Match.findById(matchId);
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+    const adminId = match.adminId.toString();
+    const admin = await getUserById(adminId);
+    if (admin) {
+      const adminInfo = {
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        image: admin.image,
+      };
+      const matchObj = match.toObject();
+      matchObj.admin = adminInfo;
+      return res.status(200).json({ match: matchObj });
+    }
     return res.status(200).json({ match });
   } catch (error) {
     console.error("Error fetching match details:", error);

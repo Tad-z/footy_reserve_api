@@ -23,6 +23,7 @@ export type MatchInt = {
   _id?: Schema.Types.ObjectId;
   teamId: string;
   adminId: Schema.Types.ObjectId;
+  admin?: AdminDetailsInt;
   pitchName: string;
   matchDate: Date;
   matchTime: string;
@@ -34,6 +35,12 @@ export type MatchInt = {
   status?: MatchStatusInt;
   accountDetails: AccountDetailsInt;
 };
+
+export type AdminDetailsInt = {
+    firstName: string;
+    lastName: string;
+    image?: string;
+  };
 
 export type AccountDetailsInt = {
   accountName: string;
