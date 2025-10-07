@@ -669,7 +669,7 @@ try {
       },
     },
     {
-      idempotencyKey: `payout_${matchId}_${Date.now()}`,
+      idempotencyKey: `payout_${matchId}`,
     }
   );
 
