@@ -7,6 +7,7 @@ import { toObjectId } from "../utils/helpers";
 import { getAllUpcomingMatchesForUser, getUpcomingMatches, getUserUpcomingMatches } from "../dao/booking";
 import { getUserById } from "../dao/user";
 
+// ask whether the admin automatically gets booked into their own match or not
 export const joinMatch = async (req: Request, res: Response) => {
   const userId = req.user.userId;
   const { teamId, password } = req.body;

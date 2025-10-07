@@ -1,5 +1,5 @@
 import mongoose, { Model, Schema } from "mongoose";
-import { AccountDetailsInt, MatchInt, MatchStatusInt } from "../interface";
+import { AccountDetailsInt, MatchInt, MatchStatusInt, payoutHistoryStatusInt } from "../interface";
 
 const AccountDetailsSchema = new Schema<AccountDetailsInt>(
   {
@@ -18,9 +18,41 @@ const AccountDetailsSchema = new Schema<AccountDetailsInt>(
     sortCode: {
       type: String,
     },
+    stripeAccountId: {
+      type: String,
+    },
   },
   { _id: false }
 );
+
+const PayoutHistorySchema = new mongoose.Schema({
+  status: {
+    type: String,
+    enum: payoutHistoryStatusInt,
+    required: true,
+  },
+  message: {
+    type: String,
+  },
+  date: {
+    type: Date,
+    default: Date.now,
+  },
+  payoutRef: {
+    type: String,
+  },
+}, { _id: false });
+
+const PricingSchema = new mongoose.Schema({
+  basePricePerSpot: Number,
+  platformFeePerSpot: Number,
+  stripeFeePerSpot: Number,
+  finalPricePerSpot: Number,
+  platformFeeRate: Number,
+  stripeFeeRate: Number,
+  stripeFixedFee: Number,
+  totalExpected: Number,
+}, { _id: false });
 
 const MatchSchema = new Schema<MatchInt>(
   {
@@ -54,6 +86,7 @@ const MatchSchema = new Schema<MatchInt>(
       type: Number,
       default: 0,
     },
+    bookedSpots: [Number],
     pricePerSpot: {
       type: Number,
       required: true,
@@ -74,6 +107,20 @@ const MatchSchema = new Schema<MatchInt>(
       default: MatchStatusInt.ACTIVE,
     },
     accountDetails: AccountDetailsSchema,
+    pricing: PricingSchema,
+    autoPayout: {
+      type: Boolean,
+      default: false,
+    },
+    payoutInitiated: {
+      type: Boolean,
+      default: false,
+    },
+    payoutHistory: { type: [PayoutHistorySchema], default: [] },
+    payoutRef: String,
+    payoutAmount: Number,
+    platformFee: Number,
+    payoutDate: Date,
   },
   { timestamps: true }
 );

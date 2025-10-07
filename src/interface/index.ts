@@ -10,6 +10,7 @@ export type UserInt = {
   image?: string;
   refreshToken?: string;
   deviceToken?: string[];
+  accountDetails?: AccountDetailsInt[];
 };
 
 export type DecodedTokenInt = {
@@ -29,12 +30,40 @@ export type MatchInt = {
   matchTime: string;
   spots: number;
   spotsBooked?: number;
+  bookedSpots?: number[];
   pricePerSpot: number;
   totalAmount: number;
   password: string;
   status?: MatchStatusInt;
   accountDetails: AccountDetailsInt;
+  pricing?: PricingInt;
+  autoPayout?: boolean;
+  payoutInitiated?: boolean;
+  payoutHistory?: PayoutHistoryInt[];
+  payoutRef?: string;
+  payoutAmount?: number;
+  platformFee?: number;
+  payoutDate?: Date;
 };
+
+export type PricingInt = {
+  basePricePerSpot: number;
+  platformFeePerSpot: number;
+  stripeFeePerSpot: number;
+  finalPricePerSpot: number;
+  platformFeeRate: number;
+  stripeFeeRate: number;
+  stripeFixedFee: number;
+  totalExpected: number;
+};
+
+export type PayoutHistoryInt = {
+  status: payoutHistoryStatusInt;
+  message: string;
+  date: Date;
+  payoutRef?: string;
+};
+
 
 export type AdminDetailsInt = {
     firstName: string;
@@ -47,11 +76,13 @@ export type AccountDetailsInt = {
   accountNumber: string;
   bankName: string;
   sortCode?: string;
+  stripeAccountId?: string;
+  connectedAt?: Date;
 };
 
 export type BookingInt = {
   _id?: Schema.Types.ObjectId;
-  matchId: Schema.Types.ObjectId;
+  matchId: Schema.Types.ObjectId | MatchInt; 
   userId: Schema.Types.ObjectId;
   status: BookingStatusInt;
   amountPaid?: number;
@@ -66,7 +97,21 @@ export type PaymentInt = {
   amount: number;
   status: PaymentStatusInt;
   transactionRef: string;
+  spotBooked?: number[];
   createdAt: Date;
+  stripePaymentIntentId?: string;
+  stripeChargeId?: string;
+  refundRef?: string;
+  refundDate?: Date;
+  refundReason?: string;
+  failureReason?: string;
+};
+
+export enum payoutHistoryStatusInt {
+  INITIATED= "INITIATED",
+  SUCCESS= "SUCCESS",
+  FAILED= "FAILED",
+  DISCREPANCY= "DISCREPANCY"
 };
 
 export enum MatchStatusInt {
@@ -74,6 +119,7 @@ export enum MatchStatusInt {
   FULLY_BOOKED = "FULLY_BOOKED",
   CANCELLED = "CANCELLED",
   COMPLETED = "COMPLETED",
+  PAID_UP = "PAID_UP",
 }
 
 export enum BookingStatusInt {
@@ -86,5 +132,6 @@ export enum PaymentStatusInt {
   PENDING = "PENDING",
   SUCCESS = "SUCCESS",
   FAILED = "FAILED",
+  CANCELED = "CANCELED",
   REFUNDED = "REFUNDED",
 }

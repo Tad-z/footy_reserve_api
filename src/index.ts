@@ -1,10 +1,12 @@
 import express, { Application, Request, Response } from "express";
 import morgan from 'morgan';
 import dotenv from "dotenv";
+import bodyParser from "body-parser";
 import main from "./models/db";
 import userRouter from "./routes/user"; 
 import matchRouter from "./routes/match";
 import bookingRouter from "./routes/booking";
+import paymentRouter from "./routes/payment";
 
 
 dotenv.config();
@@ -21,6 +23,10 @@ main()
     console.log("DB connected");
   })
   .catch(console.error);
+
+app.use("/payment/webhook", bodyParser.raw({ type: "application/json" }));
+
+
 app.use(morgan('dev')); 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -32,3 +38,4 @@ app.get('/health', (req: Request, res: Response) => {
 app.use("/user", userRouter);
 app.use("/match", matchRouter);
 app.use("/booking", bookingRouter);
+app.use("/payment", paymentRouter);

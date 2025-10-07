@@ -1,5 +1,32 @@
 import mongoose, { Model, Schema } from 'mongoose';
-import { UserInt } from "../interface";
+import { AccountDetailsInt, UserInt } from "../interface";
+
+const AccountDetailsSchema = new Schema<AccountDetailsInt>(
+  {
+    accountName: {
+      type: String,
+      required: true,
+    },
+    accountNumber: {
+      type: String,
+      required: true,
+    },
+    bankName: {
+      type: String,
+      required: true,
+    },
+    sortCode: {
+      type: String,
+    },
+    stripeAccountId: {
+      type: String,
+    },
+    connectedAt: {
+      type: Date
+    }
+  },
+  { _id: false }
+);
 
 const UserSchema = new Schema<UserInt>(
   {
@@ -34,6 +61,7 @@ const UserSchema = new Schema<UserInt>(
     deviceToken: {
       type: [String],
     },
+    accountDetails: [AccountDetailsSchema]
   },
   { timestamps: true }
 );

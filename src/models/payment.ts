@@ -31,7 +31,20 @@ const PaymentSchema = new Schema<PaymentInt>({
   transactionRef: {
     type: String,
     required: true,
-  }
+  },
+  spotBooked: [Number],
+  stripePaymentIntentId: {
+    type: String,
+    sparse: true,
+  },
+  stripeChargeId: {
+    type: String,
+    sparse: true,
+  },
+  refundRef: String,
+  refundDate: Date,
+  refundReason: String,
+  failureReason: String,
 },
  { timestamps: true }
 );

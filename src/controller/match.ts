@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
 import Match from "../models/match";
-import { MatchInt, MatchStatusInt } from "../interface";
+import { BookingInt, BookingStatusInt, MatchInt, MatchStatusInt } from "../interface";
 import bcrypt from "bcrypt";
 import { _getAdminUpcomingMatches } from "../dao/match";
 import { getUserById } from "../dao/user";
+import { calculateMatchPricing, calculatePricePerSpot, toObjectId } from "../utils/helpers";
+import Booking from "../models/booking";
 
 export const createMatch = async (req: Request, res: Response) => {
   const adminId = req.user.userId;
@@ -61,7 +63,8 @@ export const createMatch = async (req: Request, res: Response) => {
         .json({ message: "Team ID already in use. Choose another." });
     }
 
-    const pricePerSpot = totalAmount / spots;
+    // const pricePerSpot = calculatePricePerSpot(totalAmount, spots);
+    const pricing = calculateMatchPricing(totalAmount, spots);
 
     // Hash password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -73,13 +76,24 @@ export const createMatch = async (req: Request, res: Response) => {
       matchDate,
       matchTime,
       spots,
-      pricePerSpot,
+      pricePerSpot: pricing.finalPricePerSpot,
       totalAmount,
       password: hashedPassword,
       accountDetails,
+      pricing,
     });
 
     const savedMatch = await newMatch.save();
+
+     // Create booking
+    const newBooking: BookingInt = {
+      matchId: savedMatch._id,
+      userId: toObjectId(adminId),
+      status: BookingStatusInt.PENDING,
+    };
+    const booking = new Booking(newBooking);
+    await booking.save();
+
     return res
       .status(201)
       .json({ message: "Match created successfully", match: savedMatch });
@@ -92,7 +106,7 @@ export const createMatch = async (req: Request, res: Response) => {
 export const updateMatch = async (req: Request, res: Response) => {
   const adminId = req.user.userId; // from auth middleware
   const { matchId } = req.params;
-  const { pitchName, matchDate, matchTime, spots, password, totalAmount } = req.body;
+  const { pitchName, matchDate, matchTime, spots, password, totalAmount, autoPayout, status } = req.body;
 
   try {
     const match = await Match.findById(matchId);
@@ -111,6 +125,10 @@ export const updateMatch = async (req: Request, res: Response) => {
     if (pitchName) match.pitchName = pitchName;
     if (matchDate) match.matchDate = matchDate;
     if (matchTime) match.matchTime = matchTime;
+    if (autoPayout !== undefined) match.autoPayout = autoPayout;
+    if (status && Object.values(MatchStatusInt).includes(status)) {
+      match.status = status;
+    }
     // recalculate pricePerSpot if totalAmount or spots change
     if (spots) match.spots = spots;
     if (totalAmount) match.totalAmount = totalAmount;
