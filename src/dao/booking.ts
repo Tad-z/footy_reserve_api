@@ -19,7 +19,7 @@ export const getUserUpcomingMatches = async (userId: string) => {
     {
       $match: {
         "match.status": MatchStatusInt.ACTIVE,
-        // "match.matchDate": { $gte: currentDate }
+        "match.matchDate": { $gte: currentDate }
       }
     },
     { $sort: { "match.matchDate": 1 } }, // nearest first
