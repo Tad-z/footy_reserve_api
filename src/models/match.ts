@@ -106,6 +106,10 @@ const MatchSchema = new Schema<MatchInt>(
       enum: MatchStatusInt,
       default: MatchStatusInt.ACTIVE,
     },
+    blacklist: {
+      type: [mongoose.Schema.Types.ObjectId],
+      default: [],
+    },
     accountDetails: AccountDetailsSchema,
     pricing: PricingSchema,
     autoPayout: {

@@ -214,7 +214,8 @@ export const getAdminUpcomingMatches = async (req: Request, res: Response) => {
 
 export const getAllMatches = async (req: Request, res: Response) => {
   try {
-    const matches = await Match.find().sort({ matchDate: 1 });
+    const currentDate = new Date();
+    const matches = await Match.find({ matchDate: { $gte: currentDate }}).sort({ matchDate: 1 });
     return res.status(200).json({ matches });
   } catch (error) {
     console.error("Error fetching all matches:", error);

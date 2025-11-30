@@ -23,6 +23,14 @@ export const joinMatch = async (req: Request, res: Response) => {
     if (!match) {
       return res.status(404).json({ message: "Match not found" });
     }
+
+    if (match.blacklist.includes(toObjectId(userId))) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not allowed to join this match."
+      });
+    }
+
     // Check if match is active
     if (match.status !== MatchStatusInt.ACTIVE) {
       return res.status(400).json({ message: "Match not active" });
@@ -69,6 +77,55 @@ export const joinMatch = async (req: Request, res: Response) => {
   }
 };
 
+// admin kick joined user out of match
+export const forceLeaveMatch = async (req: Request, res: Response) => {
+  try {
+    const { matchId, userId } = req.params;
+
+    if (!matchId || !userId) {
+      return res.status(400).json({ message: "missing values" });
+    }
+
+    // Ensure admin performing the action
+    const match = await getMatchById(matchId);
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
+    if (match.adminId.toString() !== req.user.userId) {
+      return res.status(403).json({ message: "Only the match admin can perform this action" });
+    }
+
+    // Fetch booking first
+    const booking = await Booking.findOne({ matchId, userId });
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found for this user in the match" });
+    }
+
+    // Prevent kicking a PAID user
+    if (booking.status === BookingStatusInt.CONFIRMED) {
+      return res.status(400).json({ message: "Cannot kick a user who has already paid" });
+    }
+
+    // Delete the booking (user has not paid yet)
+    await Booking.deleteOne({ _id: booking._id });
+
+    // Add user to blacklist
+    await _updateMatch(matchId, {
+      $addToSet: { blacklist: userId }
+    });
+
+    return res.status(200).json({
+      message: "User has been removed from the match and blocked from rejoining"
+    });
+
+  } catch (error) {
+    console.error("Error forcing user to leave match:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+
 export const getMatchSpots = async (req: Request, res: Response) => {
   try {
     const { matchId } = req.params;
@@ -79,7 +136,7 @@ export const getMatchSpots = async (req: Request, res: Response) => {
 
     // Find bookings for the match and populate only firstName, lastName
     const bookings = await Booking.find({ matchId })
-      .populate("userId", "firstName lastName") // only select these fields
+      .populate("userId", "firstName lastName image") // only select these fields
       .select("status userId spotBooked"); // only return relevant booking fields
 
     return res.status(200).json(bookings);

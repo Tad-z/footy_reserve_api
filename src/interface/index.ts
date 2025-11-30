@@ -35,6 +35,7 @@ export type MatchInt = {
   totalAmount: number;
   password: string;
   status?: MatchStatusInt;
+  blacklist?: Schema.Types.ObjectId[];
   accountDetails: AccountDetailsInt;
   pricing?: PricingInt;
   autoPayout?: boolean;

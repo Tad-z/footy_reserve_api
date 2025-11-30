@@ -11,4 +11,5 @@ router.get('/', getAllMatches)
 router.get('/:matchId', getMatchDetails);
 router.patch('/update/:matchId', auth, updateMatch);
 
+
 export default router
