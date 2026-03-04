@@ -1,12 +1,18 @@
 import { Request, Response } from "express";
 import Booking from "../models/booking";
-import { BookingInt, BookingStatusInt, MatchStatusInt, NotificationTypeInt } from "../interface";
+import Payment from "../models/payment";
+import Match from "../models/match";
+import { BookingInt, BookingStatusInt, MatchStatusInt, NotificationTypeInt, PaymentStatusInt } from "../interface";
 import { getMatchById, _updateMatch } from "../dao/match";
 import bcrypt from "bcrypt";
 import { toObjectId } from "../utils/helpers";
 import { getAllUpcomingMatchesForUser, getUpcomingMatches, getUserUpcomingMatches } from "../dao/booking";
 import { getUserById } from "../dao/user";
 import { sendToUser } from "../services/firebase";
+import Stripe from "stripe";
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2024-06-20" as any,
+});
 
 // ask whether the admin automatically gets booked into their own match or not
 export const joinMatch = async (req: Request, res: Response) => {
@@ -123,6 +129,25 @@ export const forceLeaveMatch = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Cannot kick a user who has already paid" });
     }
 
+    // Cancel any in-flight PENDING payment and release reserved spots
+    const pendingPayment = await Payment.findOne({ matchId, userId, status: PaymentStatusInt.PENDING });
+    if (pendingPayment) {
+      try {
+        await stripe.paymentIntents.cancel(pendingPayment.stripePaymentIntentId);
+      } catch (stripeErr) {
+        console.error("Failed to cancel Stripe intent during kick:", stripeErr);
+        // Non-blocking — webhook will eventually release the spots
+      }
+
+      await Match.findByIdAndUpdate(matchId, {
+        $pull: { bookedSpots: { $in: pendingPayment.spotBooked } },
+      });
+
+      pendingPayment.status = PaymentStatusInt.CANCELED;
+      pendingPayment.failureReason = "Kicked by admin";
+      await pendingPayment.save();
+    }
+
     // Delete the booking (user has not paid yet)
     await Booking.deleteOne({ _id: booking._id });
 
@@ -152,6 +177,81 @@ export const forceLeaveMatch = async (req: Request, res: Response) => {
   }
 };
 
+
+// user voluntarily leaves a match
+export const leaveMatch = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user.userId;
+    const { matchId } = req.params;
+
+    const match = await getMatchById(matchId);
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
+    // Admin cannot leave their own match
+    if (match.adminId.toString() === userId) {
+      return res.status(403).json({ message: "You cannot leave a match you created" });
+    }
+
+    // No point leaving a match that's already done
+    if ([MatchStatusInt.CANCELLED, MatchStatusInt.COMPLETED].includes(match.status)) {
+      return res.status(400).json({ message: "Cannot leave a match that is already cancelled or completed" });
+    }
+
+    const booking = await Booking.findOne({ matchId, userId });
+    if (!booking) {
+      return res.status(404).json({ message: "You are not in this match" });
+    }
+
+    // Block if already paid — no self-refund flow yet
+    if (booking.status === BookingStatusInt.CONFIRMED) {
+      return res.status(400).json({ message: "You have already paid for this match. Contact the admin to be removed." });
+    }
+
+    // Cancel any in-flight PENDING payment and release reserved spots
+    const pendingPayment = await Payment.findOne({ matchId, userId, status: PaymentStatusInt.PENDING });
+    if (pendingPayment) {
+      try {
+        await stripe.paymentIntents.cancel(pendingPayment.stripePaymentIntentId);
+      } catch (stripeErr) {
+        console.error("Failed to cancel Stripe intent during leave:", stripeErr);
+        // Non-blocking — webhook will eventually release the spots
+      }
+
+      await Match.findByIdAndUpdate(matchId, {
+        $pull: { bookedSpots: { $in: pendingPayment.spotBooked } },
+      });
+
+      pendingPayment.status = PaymentStatusInt.CANCELED;
+      pendingPayment.failureReason = "User left the match";
+      await pendingPayment.save();
+    }
+
+    await Booking.deleteOne({ _id: booking._id });
+
+    // Notify admin
+    const leavingUser = await getUserById(userId);
+    if (leavingUser) {
+      sendToUser(match.adminId.toString(), {
+        title: "Player Left",
+        body: `${leavingUser.firstName} ${leavingUser.lastName} has left your match at ${match.pitchName}`,
+        type: NotificationTypeInt.USER_LEFT,
+        data: {
+          matchId: match._id,
+          userId: toObjectId(userId),
+          pitchName: match.pitchName,
+        },
+      }).catch((err) => console.error("Failed to send leave notification:", err));
+    }
+
+    return res.status(200).json({ message: "You have successfully left the match" });
+
+  } catch (error) {
+    console.error("Error leaving match:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 export const getMatchSpots = async (req: Request, res: Response) => {
   try {

@@ -175,6 +175,7 @@ export enum NotificationTypeInt {
 
   // Booking events
   USER_KICKED = "USER_KICKED",
+  USER_LEFT = "USER_LEFT",
 
   // Payment events
   PAYMENT_SUCCESS = "PAYMENT_SUCCESS",
