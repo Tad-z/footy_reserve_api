@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import Booking from "../models/booking";
-import { BookingInt, BookingStatusInt, MatchStatusInt } from "../interface";
+import { BookingInt, BookingStatusInt, MatchStatusInt, NotificationTypeInt } from "../interface";
 import { getMatchById, _updateMatch } from "../dao/match";
 import bcrypt from "bcrypt";
 import { toObjectId } from "../utils/helpers";
 import { getAllUpcomingMatchesForUser, getUpcomingMatches, getUserUpcomingMatches } from "../dao/booking";
 import { getUserById } from "../dao/user";
+import { sendToUser } from "../services/firebase";
 
 // ask whether the admin automatically gets booked into their own match or not
 export const joinMatch = async (req: Request, res: Response) => {
@@ -70,6 +71,21 @@ export const joinMatch = async (req: Request, res: Response) => {
       return res.status(500).json({ message: "Failed to create booking" });
     }
 
+    // Notify admin that a user joined their match
+    const joiningUser = await getUserById(userId);
+    if (joiningUser && match.adminId.toString() !== userId) {
+      sendToUser(match.adminId.toString(), {
+        title: "New Player Joined!",
+        body: `${joiningUser.firstName} ${joiningUser.lastName} joined your match at ${match.pitchName}`,
+        type: NotificationTypeInt.MATCH_JOINED,
+        data: {
+          matchId: match._id,
+          userId: toObjectId(userId),
+          pitchName: match.pitchName,
+        },
+      }).catch((err) => console.error("Failed to send join notification:", err));
+    }
+
     return res.status(201).json({ booking: savedBooking });
   } catch (error) {
     console.error("Error joining match:", error);
@@ -114,6 +130,17 @@ export const forceLeaveMatch = async (req: Request, res: Response) => {
     await _updateMatch(matchId, {
       $addToSet: { blacklist: userId }
     });
+
+    // Notify the kicked user
+    sendToUser(userId, {
+      title: "Removed from Match",
+      body: `You have been removed from the match at ${match.pitchName}`,
+      type: NotificationTypeInt.USER_KICKED,
+      data: {
+        matchId: match._id,
+        pitchName: match.pitchName,
+      },
+    }).catch((err) => console.error("Failed to send kick notification:", err));
 
     return res.status(200).json({
       message: "User has been removed from the match and blocked from rejoining"

@@ -1,5 +1,5 @@
 
-import { BookingStatusInt, MatchInt, MatchStatusInt, PaymentStatusInt, payoutHistoryStatusInt } from "../interface";
+import { BookingStatusInt, MatchInt, MatchStatusInt, NotificationTypeInt, PaymentStatusInt, payoutHistoryStatusInt } from "../interface";
 import Booking from "../models/booking";
 import { Request, Response } from "express";
 import Payment from "../models/payment";
@@ -10,6 +10,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 import mongoose from "mongoose";
 import User from "../models/user";
+import { sendToUser, sendToUsers } from "../services/firebase";
 
 // ==========================================
 // 1. PAYMENT INITIATION
@@ -394,6 +395,56 @@ export async function handleSuccessfulPayment(paymentIntent) {
     await session.commitTransaction();
     console.log("Payment processed successfully:", paymentId);
 
+    // ---- Send notifications after successful commit ----
+    const payingUser = await User.findById(paymentIntent.metadata.userId);
+    const numberOfSpotsNum = spotBooked.split(",").length;
+
+    // Notify the user who paid
+    sendToUser(paymentIntent.metadata.userId, {
+      title: "Payment Successful!",
+      body: `You've secured ${numberOfSpotsNum} spot${numberOfSpotsNum > 1 ? "s" : ""} for the match at ${match.pitchName}`,
+      type: NotificationTypeInt.PAYMENT_SUCCESS,
+      data: {
+        matchId: match._id,
+        paymentId: payment._id,
+        amount: payment.amount,
+        spots: numberOfSpotsNum,
+        pitchName: match.pitchName,
+      },
+    }).catch((err) => console.error("Failed to send payment success notification:", err));
+
+    // Notify the admin that someone paid
+    if (match.adminId.toString() !== paymentIntent.metadata.userId && payingUser) {
+      sendToUser(match.adminId.toString(), {
+        title: "Payment Received!",
+        body: `${payingUser.firstName} ${payingUser.lastName} paid for ${numberOfSpotsNum} spot${numberOfSpotsNum > 1 ? "s" : ""}`,
+        type: NotificationTypeInt.SPOT_PAID,
+        data: {
+          matchId: match._id,
+          userId: payingUser._id,
+          amount: payment.amount,
+          spots: numberOfSpotsNum,
+          pitchName: match.pitchName,
+        },
+      }).catch((err) => console.error("Failed to send spot paid notification:", err));
+    }
+
+    // If match is now fully booked, notify all players
+    if (updatedMatch.spotsBooked === updatedMatch.spots) {
+      const allBookings = await Booking.find({ matchId });
+      const allUserIds = allBookings.map((b) => b.userId.toString());
+
+      sendToUsers(allUserIds, {
+        title: "Match is Full!",
+        body: `The match at ${match.pitchName} is now fully booked`,
+        type: NotificationTypeInt.MATCH_FULLY_BOOKED,
+        data: {
+          matchId: match._id,
+          pitchName: match.pitchName,
+        },
+      }).catch((err) => console.error("Failed to send match full notification:", err));
+    }
+
   } catch (error) {
     await session.abortTransaction();
     console.error("Error processing successful payment:", error);
@@ -490,9 +541,20 @@ async function handleFailedPayment(paymentIntent) {
 
     console.log('Payment failed recorded:', paymentId);
 
+    // Get match details for notification
+    const match = await Match.findById(matchId);
 
-    // (Optional) trigger a notification to the user only the first time
-    // await notifyUser(payment.userId, "Your payment failed, please retry...");
+    // Notify user of payment failure
+    sendToUser(payment.userId.toString(), {
+      title: "Payment Failed",
+      body: `Your payment for the match at ${match?.pitchName || "Unknown"} failed. Please try again.`,
+      type: NotificationTypeInt.PAYMENT_FAILED,
+      data: {
+        matchId: payment.matchId,
+        paymentId: payment._id,
+        pitchName: match?.pitchName,
+      },
+    }).catch((err) => console.error("Failed to send payment failed notification:", err));
 
     return {
       success: false,
@@ -687,6 +749,19 @@ try {
     });
 
     console.log(`✅ Payout successful for match ${matchId}: £${payoutAmount}`);
+
+    // Notify admin of successful payout
+    sendToUser(match.adminId.toString(), {
+      title: "Payout Completed!",
+      body: `£${payoutAmount.toFixed(2)} has been transferred to your account for the match at ${match.pitchName}`,
+      type: NotificationTypeInt.PAYOUT_COMPLETED,
+      data: {
+        matchId: match._id,
+        amount: payoutAmount,
+        pitchName: match.pitchName,
+      },
+    }).catch((err) => console.error("Failed to send payout success notification:", err));
+
     return {
       success: true,
       message: `Payout of £${payoutAmount} successful`,
@@ -706,6 +781,17 @@ try {
         },
         },
     });
+
+    // Notify admin of failed payout
+    sendToUser(match.adminId.toString(), {
+      title: "Payout Failed",
+      body: `The payout for your match at ${match.pitchName} failed. Please try again later.`,
+      type: NotificationTypeInt.PAYOUT_FAILED,
+      data: {
+        matchId: match._id,
+        pitchName: match.pitchName,
+      },
+    }).catch((notifyErr) => console.error("Failed to send payout failed notification:", notifyErr));
 
     return {
       success: false,

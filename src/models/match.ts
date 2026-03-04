@@ -125,6 +125,10 @@ const MatchSchema = new Schema<MatchInt>(
     payoutAmount: Number,
     platformFee: Number,
     payoutDate: Date,
+    reminderSent: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

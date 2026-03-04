@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import Match from "../models/match";
-import { BookingInt, BookingStatusInt, MatchInt, MatchStatusInt } from "../interface";
+import { BookingInt, BookingStatusInt, MatchInt, MatchStatusInt, NotificationTypeInt } from "../interface";
 import bcrypt from "bcrypt";
 import { _getAdminUpcomingMatches } from "../dao/match";
 import { getUserById } from "../dao/user";
 import { calculateMatchPricing, calculatePricePerSpot, toObjectId } from "../utils/helpers";
 import Booking from "../models/booking";
+import { sendToUsers } from "../services/firebase";
 
 export const createMatch = async (req: Request, res: Response) => {
   const adminId = req.user.userId;
@@ -142,6 +143,43 @@ export const updateMatch = async (req: Request, res: Response) => {
     }
 
     const updatedMatch = await match.save();
+
+    // Notify players if match is cancelled
+    if (status === MatchStatusInt.CANCELLED) {
+      const bookings = await Booking.find({ matchId });
+      const userIds = bookings.map((b) => b.userId.toString());
+
+      if (userIds.length > 0) {
+        sendToUsers(userIds, {
+          title: "Match Cancelled",
+          body: `The match at ${updatedMatch.pitchName} has been cancelled`,
+          type: NotificationTypeInt.MATCH_CANCELLED,
+          data: {
+            matchId: updatedMatch._id,
+            pitchName: updatedMatch.pitchName,
+          },
+        }).catch((err) => console.error("Failed to send match cancelled notification:", err));
+      }
+    }
+    // Notify players if significant details changed (date, time, or location)
+    else if (pitchName || matchDate || matchTime) {
+      const bookings = await Booking.find({ matchId });
+      const userIds = bookings
+        .map((b) => b.userId.toString())
+        .filter((id) => id !== adminId); // Don't notify admin
+
+      if (userIds.length > 0) {
+        sendToUsers(userIds, {
+          title: "Match Updated",
+          body: `Details changed for the match at ${updatedMatch.pitchName}`,
+          type: NotificationTypeInt.MATCH_UPDATED,
+          data: {
+            matchId: updatedMatch._id,
+            pitchName: updatedMatch.pitchName,
+          },
+        }).catch((err) => console.error("Failed to send match updated notification:", err));
+      }
+    }
 
     return res.status(200).json({
       message: "Match updated successfully",

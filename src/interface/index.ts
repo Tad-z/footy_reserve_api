@@ -45,6 +45,7 @@ export type MatchInt = {
   payoutAmount?: number;
   platformFee?: number;
   payoutDate?: Date;
+  reminderSent?: boolean;
 };
 
 export type PricingInt = {
@@ -136,3 +137,113 @@ export enum PaymentStatusInt {
   CANCELED = "CANCELED",
   REFUNDED = "REFUNDED",
 }
+
+// Device types
+export enum DevicePlatformInt {
+  IOS = "ios",
+  ANDROID = "android",
+  WEB = "web",
+}
+
+export enum TokenStatusInt {
+  ACTIVE = "active",
+  INVALID = "invalid",
+  EXPIRED = "expired",
+}
+
+export type DeviceInt = {
+  _id?: Schema.Types.ObjectId;
+  deviceId: string;
+  fcmToken: string;
+  platform: DevicePlatformInt;
+  appVersion: string;
+  userId?: Schema.Types.ObjectId | null;
+  lastSeenAt?: Date;
+  tokenStatus?: TokenStatusInt;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+// Notification types
+export enum NotificationTypeInt {
+  // Match events
+  MATCH_JOINED = "MATCH_JOINED",
+  MATCH_FULLY_BOOKED = "MATCH_FULLY_BOOKED",
+  MATCH_CANCELLED = "MATCH_CANCELLED",
+  MATCH_REMINDER = "MATCH_REMINDER",
+  MATCH_UPDATED = "MATCH_UPDATED",
+
+  // Booking events
+  USER_KICKED = "USER_KICKED",
+
+  // Payment events
+  PAYMENT_SUCCESS = "PAYMENT_SUCCESS",
+  PAYMENT_FAILED = "PAYMENT_FAILED",
+  SPOT_PAID = "SPOT_PAID",
+  REFUND_PROCESSED = "REFUND_PROCESSED",
+
+  // Payout events
+  PAYOUT_INITIATED = "PAYOUT_INITIATED",
+  PAYOUT_COMPLETED = "PAYOUT_COMPLETED",
+  PAYOUT_FAILED = "PAYOUT_FAILED",
+
+  // System
+  BROADCAST = "BROADCAST",
+}
+
+export type NotificationDataInt = {
+  matchId?: Schema.Types.ObjectId;
+  bookingId?: Schema.Types.ObjectId;
+  paymentId?: Schema.Types.ObjectId;
+  userId?: Schema.Types.ObjectId;
+  amount?: number;
+  pitchName?: string;
+  spots?: number;
+};
+
+export type NotificationInt = {
+  _id?: Schema.Types.ObjectId;
+  userId: Schema.Types.ObjectId;
+  title: string;
+  body: string;
+  type: NotificationTypeInt;
+  data?: NotificationDataInt;
+  isRead?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+export type NotificationPayloadInt = {
+  title: string;
+  body: string;
+  type: NotificationTypeInt;
+  data?: NotificationDataInt;
+};
+
+// OTP types
+export enum OtpTypeInt {
+  SIGNUP = "SIGNUP",
+  PASSWORD_RESET = "PASSWORD_RESET",
+}
+
+export type OtpInt = {
+  _id?: Schema.Types.ObjectId;
+  email: string;
+  code: string;
+  type: OtpTypeInt;
+  attempts?: number;
+  verified?: boolean;
+  lastSentAt?: Date;
+  createdAt?: Date;
+};
+
+export type TempUserInt = {
+  _id?: Schema.Types.ObjectId;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  country: string;
+  image?: string;
+  createdAt?: Date;
+};

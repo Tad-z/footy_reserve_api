@@ -3,10 +3,13 @@ import morgan from 'morgan';
 import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import main from "./models/db";
-import userRouter from "./routes/user"; 
+import userRouter from "./routes/user";
 import matchRouter from "./routes/match";
 import bookingRouter from "./routes/booking";
 import paymentRouter from "./routes/payment";
+import deviceRouter from "./routes/device";
+import notificationRouter from "./routes/notification";
+import { startMatchReminderCron } from "./cron/matchReminder";
 
 
 dotenv.config();
@@ -39,3 +42,8 @@ app.use("/user", userRouter);
 app.use("/match", matchRouter);
 app.use("/booking", bookingRouter);
 app.use("/payment", paymentRouter);
+app.use("/device", deviceRouter);
+app.use("/notification", notificationRouter);
+
+// Start cron jobs
+startMatchReminderCron();
